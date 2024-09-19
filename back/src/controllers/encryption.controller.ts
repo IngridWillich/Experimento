@@ -73,8 +73,7 @@ encryptionRouter.post('/encrypt', (req: Request, res: Response) => {
   // Endpoint para obtener información encriptada
   encryptionRouter.get('/decrypt/:id', (req: Request, res: Response) => {
     const { id } = req.params;
-    const filePath = path.join(__dirname, `encrypted_${id}.txt`);
-  
+    const filePath = path.join(__dirname, `../controllers/encryptedBody_${id}.txt`);
     // Revisa si el archivo existe
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ message: 'Encrypted file not found' });
