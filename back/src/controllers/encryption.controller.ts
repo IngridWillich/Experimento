@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { Encrypt } from '../services/encrypt.service';
+import { get } from 'http';
 
 
 const encrypt = new Encrypt(); // Crear una instancia de Encrypt
@@ -12,9 +13,9 @@ const encryptionRouter = express.Router();
 
 encryptionRouter.post('/encrypt', (req: Request, res: Response) => {
     const { text } = req.body;
-  
-    if (!text) {
-      return res.status(400).json({ message: 'You have not entered any text' });
+      
+    if (!text ) {
+      return res.status(400).json({ message: 'You have to enter text and password' });
     }
   
     try {
@@ -103,5 +104,55 @@ encryptionRouter.post('/encrypt', (req: Request, res: Response) => {
       res.status(500).json({ message: 'Decryption failed', error: error });
     }
   });
+
+
+  encryptionRouter.get("/user-files", async (req: Request, res: Response) => {
+    const userId= req.body.userId;
+  if(!userId){
+    return res.status(403).json({ message: 'You have to be logged in' });
+  }
+  try {
+    const filePath= path.join(__dirname, `../controllers/encryptedBody_${userId}`);
+    const files= fs.readdirSync(filePath);//El método devuelve una matriz con todos los nombres de archivos u objetos del directorio
+    
+    const fileNames= files.map(file => path.basename(file));//extrae nombre del archivo
+    res.json({ files: fileNames });
+      
+    
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to get files', error: error });
+  }
+  });
+
+  encryptionRouter.post("/decrypt-file", async (req: Request, res: Response) => {
+    const {password, fileName } = req.body;
+    const userId=req.body?.userId;
+
+
+    if(!userId || !password || !fileName){
+      return res.status(403).json({ message: 'You have to be logged in' });
+    }
+    const filePath= path.join(__dirname, `../controllers/encryptedBody_${userId}/${fileName}`);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: 'File not found' });
+    }
+
+    try {
+      const encryptedData = Encrypt.readFromFile(filePath);// Lee el contenido del archivo
+
+      const decryptor=new Encrypt();
+      decryptor.key=crypto.scryptSync(password, 'salt', 32);// Genera clave de encriptación
+      decryptor.iv=Buffer.from(encryptedData.iv, 'hex');// Genera vector de inicialización
+
+
+      const decrypted = decryptor.decrypt(encryptedData.data);// Desencripta el texto
+      res.json({ data: JSON.parse(decrypted) });
+    } catch (error) {
+      res.status(500).json({ message: 'Decryption failed', error: error });
+    }
+  })
+
+
+
   
   export { encryptionRouter };

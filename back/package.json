@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "nodemon --exec ts-node src/index.ts",
-    "dev":"node --inspect=9229 -r ts-node/register back/src/app.ts"
+    "dev": "node --inspect=9229 -r ts-node/register back/src/app.ts"
   },
   "keywords": [],
   "author": "",
