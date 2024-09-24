@@ -107,22 +107,26 @@ encryptionRouter.post('/encrypt', (req: Request, res: Response) => {
 
 
   encryptionRouter.get("/user-files", async (req: Request, res: Response) => {
-    const userId= req.body.userId;
-  if(!userId){
-    return res.status(403).json({ message: 'You have to be logged in' });
-  }
-  try {
-    const filePath= path.join(__dirname, `../controllers/encryptedBody_${userId}`);
-    const files= fs.readdirSync(filePath);//El método devuelve una matriz con todos los nombres de archivos u objetos del directorio
-    
-    const fileNames= files.map(file => path.basename(file));//extrae nombre del archivo
-    res.json({ files: fileNames });
-      
-    
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to get files', error: error });
-  }
-  });
+    const userId = req.body.userId;
+
+    if (!userId) {
+        return res.status(403).json({ message: 'You have to be logged in' });
+    }
+
+    try {
+        const filePath = path.join(__dirname, `../controllers/encryptedBody_${userId}`);
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ message: 'No files found for this user' });
+        }
+
+        const files = fs.readdirSync(filePath); // Lista todos los archivos
+        const fileNames = files.map(file => path.basename(file)); // Extrae solo los nombres de archivos
+
+        res.json({ files: fileNames });
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to get files', error });
+    }
+});
 
   encryptionRouter.post("/decrypt-file", async (req: Request, res: Response) => {
     const {password, fileName } = req.body;
@@ -151,6 +155,47 @@ encryptionRouter.post('/encrypt', (req: Request, res: Response) => {
       res.status(500).json({ message: 'Decryption failed', error: error });
     }
   })
+
+  encryptionRouter.post("/encrypt-file", async (req: Request, res: Response) => {
+    const { password, text, userId } = req.body;
+
+    if (!userId) {
+        return res.status(403).json({ message: 'You have to be logged in' });
+    }
+
+    if (!text || !password) {
+        return res.status(400).json({ message: 'Text and password are required' });
+    }
+
+    try {
+        const algorithm = 'aes-256-cbc';
+        const key = crypto.scryptSync(password, 'salt', 32); // Utiliza la contraseña para generar la clave de encriptación
+        const iv = crypto.randomBytes(16);
+
+        const cipher = crypto.createCipheriv(algorithm, key, iv);
+        let encrypted = cipher.update(text, 'utf8', 'hex');
+        encrypted += cipher.final('hex');
+
+        // Guardar el archivo encriptado en el servidor
+        const fileName = `encryptedText_${Date.now()}.txt`;
+        const filePath = path.join(__dirname, `../controllers/encryptedBody_${userId}/${fileName}`);
+
+        // Asegurarse de que el directorio existe
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+
+        fs.writeFileSync(filePath, JSON.stringify({
+            iv: iv.toString('hex'),
+            data: encrypted
+        }));
+
+        res.json({ message: 'Text encrypted and saved successfully', fileName });
+    } catch (error) {
+        res.status(500).json({ message: 'Text encryption failed', error });
+    }
+});
+
+
+  
 
 
 
